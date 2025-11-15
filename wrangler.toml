@@ -1,0 +1,21 @@
+name = "cf_ai_edge_study_coach"
+main = "src/index.ts"
+compatibility_date = "2025-11-01"
+
+# Static assets (UI)
+[assets]
+directory = "public"
+binding = "ASSETS"
+
+# Workers AI binding
+[ai]
+binding = "AI"
+
+# Durable Object binding
+[[durable_objects.bindings]]
+name = "CHAT_SESSION"
+class_name = "ChatSession"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ChatSession"]

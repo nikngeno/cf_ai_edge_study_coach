@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Edge Study Coach</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header>
+        <h1>Edge Study Coach</h1>
+        <p>AI-powered study companion running on Cloudflare Workers AI.</p>
+      </header>
+
+      <section class="goals">
+        <h2>Your current study goals</h2>
+        <textarea
+          id="goalsInput"
+          placeholder="e.g., master paging, review SR latches, practice C# delegates"
+        ></textarea>
+        <button id="saveGoalsBtn">Save goals</button>
+      </section>
+
+      <section class="chat">
+        <div id="messages"></div>
+        <form id="chatForm">
+          <input
+            id="messageInput"
+            type="text"
+            placeholder="Ask a question or say what you're studying..."
+            autocomplete="off"
+          />
+          <button type="submit">Send</button>
+        </form>
+      </section>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
