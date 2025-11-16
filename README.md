@@ -1,64 +1,58 @@
 cf_ai_edge_study_coach
 
 Edge Study Coach is an AI-powered study assistant built entirely on Cloudflare Workers, Workers AI, and Durable Objects.
+It lets users set study goals, chat with an AI tutor, and maintain personalized progress through persistent state.
 
-Users can:
-
-Set study goals
-
-Chat with an AI tutor
-
-Receive context-aware explanations
-
-Persist progress through Durable Object memory
-
-This project fulfills all requirements for the Cloudflare AI Fast-Track Assignment.
+This implementation fully satisfies all requirements for the Cloudflare AI Fast-Track Assignment.
 
 🚀 Live Deployment
 
 Production URL:
-👉 Add your deployed URL here after running npm run deploy
+Add your deployed link here after running npm run deploy
 
-🧠 How It Works
-Browser (HTML/CSS/JS UI)
-      ↓  /api/chat      /api/history
+🧠 Overview
+
+Edge Study Coach uses Cloudflare’s serverless stack end-to-end:
+
+Browser (HTML/JS UI)
+      ↓   /api/chat   /api/history
 Cloudflare Worker (index.ts)
       ↓
 Durable Object: ChatSession
-    - Saves goals
-    - Stores message history
-    - Builds LLM prompts
+    - Stores study goals
+    - Persists message history
+    - Builds personalized LLM prompts
       ↓
 Workers AI (Llama 3.3)
     - env.AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast")
 
 
-Edge Study Coach runs fully on Cloudflare’s serverless platform — no external servers or APIs required.
+No backend servers or external APIs are required — everything runs at the edge.
 
 📁 Project Structure
 src/
-  index.ts          # Worker routing + API
-  chatSession.ts    # Durable Object (memory + LLM calls)
+  index.ts          # Worker routing + API endpoints
+  chatSession.ts    # Durable Object: state + LLM calls
 
 public/
   index.html        # Chat interface
   styles.css        # UI styling
-  app.js            # Frontend logic
+  app.js            # Frontend logic (fetch + rendering)
 
-wrangler.toml       # Cloudflare config (AI + DO + assets)
+wrangler.toml       # Cloudflare configuration (AI + DO + assets)
 package.json
 tsconfig.json
 README.md
 PROMPTS.md
 
-🧪 Running Locally
+🧪 Local Development
 1. Install dependencies
 npm install
 
 2. Log in to Cloudflare
 wrangler login
 
-3. Start dev environment
+3. Start the development server
 npm run dev
 
 
@@ -66,20 +60,20 @@ Then open:
 
 http://localhost:8787
 
-You’ll see the chat interface.
+
+You should see the chat interface and be able to interact with the AI locally.
 
 🌐 Deployment
 
-Deploy to Cloudflare:
+Deploy the Worker:
 
 npm run deploy
 
 
-Wrangler will output your final Workers URL.
-Paste that URL under Live Deployment above.
+Copy the generated *.workers.dev URL and paste it into the Live Deployment section above.
 
-🔧 Technical Features
-✔ Workers AI
+🔧 Key Features
+✔ Workers AI (LLM)
 
 Uses Llama 3.3 via:
 
@@ -87,38 +81,41 @@ env.AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast", {...})
 
 ✔ Durable Objects for Memory
 
-Each user session has persistent state:
+Each user session retains:
 
 Study goals
 
-Chat history
+Message history
 
-Context injection into AI prompt
+Context for improved LLM responses
 
-✔ Web UI
-
-A simple and clean chat interface:
-
-Local session tracking
+✔ Lightweight Web Interface
 
 Goal editor
 
-Real-time messages
+Chat input
 
-✔ Edge Execution
+Real-time message rendering
 
-All processing runs close to the user.
-No servers. No API keys. No backend needed.
+Session persistence via localStorage
 
-✔ Cloudflare Assignment Requirements (Scored Criteria)
+✔ 100% Edge Execution
+
+No servers
+
+No API keys
+
+Fully Cloudflare-native architecture
+
+✔ Assignment Checklist
 Requirement	Completed
-LLM	Workers AI: Llama 3.3
-Workflow / Coordination	Durable Object session manager
-User Input / Chat	Browser UI via / + JS
+LLM	Workers AI (Llama 3.3)
+Workflow / Coordination	Durable Object session handler
+User Input / Chat	Browser UI + Worker API
 Memory / State	DO persistent storage
-Documentation	README + PROMPTS.md
-Repo Prefix	Yes → cf_ai_
-Fully Original	✔ 100%
+Documentation	README.md + PROMPTS.md
+Repo Prefix	Yes (cf_ai_…)
+Original Work	✔ Fully original
 📜 License
 
-MIT License – free for modification and extension.
+MIT License — free to use, modify, and extend.
