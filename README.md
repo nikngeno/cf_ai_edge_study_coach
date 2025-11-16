@@ -1,35 +1,31 @@
-cf_ai_edge_study_coach
-
+Edge Study Coach
 Edge Study Coach is an AI-powered study assistant built entirely on Cloudflare Workers, Workers AI, and Durable Objects.
-It lets users set study goals, chat with an AI tutor, and maintain personalized progress through persistent state.
-
+It enables users to set study goals, chat with an AI tutor, and maintain personalized progress through persistent state.
 This implementation fully satisfies all requirements for the Cloudflare AI Fast-Track Assignment.
 
 🚀 Live Deployment
-
 Production URL:
 Add your deployed link here after running npm run deploy
 
 🧠 Overview
+Edge Study Coach leverages Cloudflare’s serverless stack end-to-end:
 
-Edge Study Coach uses Cloudflare’s serverless stack end-to-end:
-
+text
 Browser (HTML/JS UI)
-      ↓   /api/chat   /api/history
+      ↓    /api/chat   /api/history
 Cloudflare Worker (index.ts)
       ↓
 Durable Object: ChatSession
-    - Stores study goals
-    - Persists message history
-    - Builds personalized LLM prompts
+    • Stores study goals
+    • Persists message history
+    • Builds personalized LLM prompts
       ↓
 Workers AI (Llama 3.3)
-    - env.AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast")
-
-
-No backend servers or external APIs are required — everything runs at the edge.
+    • env.AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast")
+No backend servers or external APIs required — everything runs at the edge.
 
 📁 Project Structure
+text
 src/
   index.ts          # Worker routing + API endpoints
   chatSession.ts    # Durable Object: state + LLM calls
@@ -39,48 +35,39 @@ public/
   styles.css        # UI styling
   app.js            # Frontend logic (fetch + rendering)
 
-wrangler.toml       # Cloudflare configuration (AI + DO + assets)
+wrangler.toml       # Cloudflare config (AI, DO, assets)
 package.json
 tsconfig.json
 README.md
 PROMPTS.md
-
 🧪 Local Development
-1. Install dependencies
+Install dependencies
+
+text
 npm install
+Log in to Cloudflare
 
-2. Log in to Cloudflare
+text
 wrangler login
+Start the development server
 
-3. Start the development server
+text
 npm run dev
-
-
-Then open:
-
-http://localhost:8787
-
-
-You should see the chat interface and be able to interact with the AI locally.
+Then open http://localhost:8787 in your browser to access the chat interface and interact with the AI locally.
 
 🌐 Deployment
-
 Deploy the Worker:
 
+text
 npm run deploy
-
-
 Copy the generated *.workers.dev URL and paste it into the Live Deployment section above.
 
 🔧 Key Features
 ✔ Workers AI (LLM)
-
 Uses Llama 3.3 via:
-
 env.AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast", {...})
 
 ✔ Durable Objects for Memory
-
 Each user session retains:
 
 Study goals
@@ -117,5 +104,5 @@ Documentation	README.md + PROMPTS.md
 Repo Prefix	Yes (cf_ai_…)
 Original Work	✔ Fully original
 📜 License
-
+Choose your preferred license and add license text here.
 MIT License — free to use, modify, and extend.
