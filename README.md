@@ -16,26 +16,21 @@ _Add your deployed link here after running `npm run deploy`_
 
 ---
 
-## 🧠 Overview
-
-A fully serverless stack using Cloudflare:
-src/
-index.ts # Worker routing + API endpoints
-chatSession.ts # Durable Object: state + LLM calls
-
-public/
-index.html # Chat interface
-styles.css # UI styling
-app.js # Frontend logic (fetch + rendering)
-
-wrangler.toml # Cloudflare config (AI, DO, assets)
-package.json
-tsconfig.json
-README.md
-PROMPTS.md
 
 ## 🗂️ Project Structure
 
+| #  | File/Folder      | Description                           |
+|----|------------------|----------------------------------------|
+| 1  | src/index.ts     | Worker routing + API endpoints         |
+| 2  | src/chatSession.ts | Durable Object (state + AI calls)    |
+| 3  | public/index.html| Chat interface                        |
+| 4  | public/styles.css| UI styling                            |
+| 5  | public/app.js    | Frontend logic (fetch + rendering)     |
+| 6  | wrangler.toml    | Cloudflare configuration (AI + DO + assets) |
+| 7  | package.json     | Scripts & dependencies                |
+| 8  | tsconfig.json    | TypeScript config                     |
+| 9  | README.md        | Documentation                         |
+|10  | PROMPTS.md       | Log of AI prompts used                |
 
 ---
 
