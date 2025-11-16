@@ -1,108 +1,113 @@
-Edge Study Coach
-Edge Study Coach is an AI-powered study assistant built entirely on Cloudflare Workers, Workers AI, and Durable Objects.
-It enables users to set study goals, chat with an AI tutor, and maintain personalized progress through persistent state.
-This implementation fully satisfies all requirements for the Cloudflare AI Fast-Track Assignment.
+# 🚀 Edge Study Coach
 
-🚀 Live Deployment
-Production URL:
-Add your deployed link here after running npm run deploy
+An AI-powered study assistant built 100% on Cloudflare Workers, Workers AI, and Durable Objects.
 
-🧠 Overview
-Edge Study Coach leverages Cloudflare’s serverless stack end-to-end:
+Easily set study goals, chat with your personal AI tutor, and track progress—all with edge-native persistent state.  
+This implementation satisfies all requirements for the **Cloudflare AI Fast-Track Assignment**.
 
-text
-Browser (HTML/JS UI)
-      ↓    /api/chat   /api/history
-Cloudflare Worker (index.ts)
-      ↓
-Durable Object: ChatSession
-    • Stores study goals
-    • Persists message history
-    • Builds personalized LLM prompts
-      ↓
-Workers AI (Llama 3.3)
-    • env.AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast")
-No backend servers or external APIs required — everything runs at the edge.
+[![Deploy to Cloudflare](https://img.shields.io/badge/Deploy_to-Cloudflare-blue?logo=Cloudflare)](#)
 
-📁 Project Structure
-text
+---
+
+## 🌐 Live Deployment
+
+**Production URL:**  
+_Add your deployed link here after running `npm run deploy`_
+
+---
+
+## 🧠 Overview
+
+A fully serverless stack using Cloudflare:
 src/
-  index.ts          # Worker routing + API endpoints
-  chatSession.ts    # Durable Object: state + LLM calls
+index.ts # Worker routing + API endpoints
+chatSession.ts # Durable Object: state + LLM calls
 
 public/
-  index.html        # Chat interface
-  styles.css        # UI styling
-  app.js            # Frontend logic (fetch + rendering)
+index.html # Chat interface
+styles.css # UI styling
+app.js # Frontend logic (fetch + rendering)
 
-wrangler.toml       # Cloudflare config (AI, DO, assets)
+wrangler.toml # Cloudflare config (AI, DO, assets)
 package.json
 tsconfig.json
 README.md
 PROMPTS.md
-🧪 Local Development
-Install dependencies
 
-text
-npm install
-Log in to Cloudflare
+## 🗂️ Project Structure
 
-text
-wrangler login
-Start the development server
 
-text
-npm run dev
-Then open http://localhost:8787 in your browser to access the chat interface and interact with the AI locally.
+---
 
-🌐 Deployment
-Deploy the Worker:
+## 🧪 Local Development
 
-text
-npm run deploy
-Copy the generated *.workers.dev URL and paste it into the Live Deployment section above.
+1. **Install dependencies**
+    ```
+    npm install
+    ```
 
-🔧 Key Features
-✔ Workers AI (LLM)
-Uses Llama 3.3 via:
-env.AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast", {...})
+2. **Log in to Cloudflare**
+    ```
+    wrangler login
+    ```
 
-✔ Durable Objects for Memory
-Each user session retains:
+3. **Start the development server**
+    ```
+    npm run dev
+    ```
 
-Study goals
+Open [http://localhost:8787](http://localhost:8787) in your browser to see the chat interface and interact with the AI locally.
 
-Message history
+---
 
-Context for improved LLM responses
+## 🚚 Deployment
 
-✔ Lightweight Web Interface
+1. **Deploy the Worker:**
+    ```
+    npm run deploy
+    ```
+2. Copy the generated `*.workers.dev` URL and add it to the "Live Deployment" section above.
 
-Goal editor
+---
 
-Chat input
+## ✨ Features
 
-Real-time message rendering
+- 🤖 **Workers AI (LLM):**  
+  Uses Llama 3.3 via  
+  `env.AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast", {...})`
 
-Session persistence via localStorage
+- 💾 **Durable Objects for Memory:**  
+  - Persistent study goals  
+  - Retained message history  
+  - Personalized session context
 
-✔ 100% Edge Execution
+- 🏷️ **Lightweight Web Interface:**  
+  - Goal editor  
+  - Chat input  
+  - Real-time message rendering  
+  - Session persistence via `localStorage`
 
-No servers
+- 🛰️ **100% Edge Execution:**  
+  - No backend servers  
+  - No external API keys  
+  - Fully Cloudflare-native architecture
 
-No API keys
+---
 
-Fully Cloudflare-native architecture
+## ✅ Assignment Checklist
 
-✔ Assignment Checklist
-Requirement	Completed
-LLM	Workers AI (Llama 3.3)
-Workflow / Coordination	Durable Object session handler
-User Input / Chat	Browser UI + Worker API
-Memory / State	DO persistent storage
-Documentation	README.md + PROMPTS.md
-Repo Prefix	Yes (cf_ai_…)
-Original Work	✔ Fully original
-📜 License
-Choose your preferred license and add license text here.
-MIT License — free to use, modify, and extend.
+| Requirement            | Completed                             |
+|------------------------|---------------------------------------|
+| LLM                    | Workers AI (Llama 3.3)                |
+| Workflow/Coordination  | Durable Object session handler        |
+| User Input/Chat        | Browser UI + Worker API               |
+| Memory/State           | DO persistent storage                 |
+| Documentation          | README.md + PROMPTS.md                |
+| Repo Prefix            | Yes (`cf_ai_…`)                       |
+| Original Work          | ✔ Fully original                      |
+
+---
+
+## 📄 License
+
+Free to use
