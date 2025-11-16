@@ -89,20 +89,6 @@ Open [http://localhost:8787](http://localhost:8787) in your browser to see the c
 
 ---
 
-## ✅ Assignment Checklist
-
-| Requirement            | Completed                             |
-|------------------------|---------------------------------------|
-| LLM                    | Workers AI (Llama 3.3)                |
-| Workflow/Coordination  | Durable Object session handler        |
-| User Input/Chat        | Browser UI + Worker API               |
-| Memory/State           | DO persistent storage                 |
-| Documentation          | README.md + PROMPTS.md                |
-| Repo Prefix            | Yes (`cf_ai_…`)                       |
-| Original Work          | ✔ Fully original                      |
-
----
-
 ## 📄 License
 
 Free to use
