@@ -1,9 +1,7 @@
 # 🚀 Edge Study Coach
 
-An AI-powered study assistant built 100% on Cloudflare Workers, Workers AI, and Durable Objects.
-
-Easily set study goals, chat with your personal AI tutor, and track progress—all with edge-native persistent state.  
-This implementation satisfies all requirements for the **Cloudflare AI Fast-Track Assignment**.
+**Edge Study Coach** is an AI-powered study assistant built entirely on **Cloudflare Workers**, **Workers AI**, and **Durable Objects**.  
+Users can set study goals, chat with an AI tutor, and maintain personalized study progress through persistent session memory.
 
 [![Deploy to Cloudflare](https://img.shields.io/badge/Deploy_to-Cloudflare-blue?logo=Cloudflare)](#)
 
