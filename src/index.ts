@@ -16,9 +16,15 @@ export default {
       return new Response("OK", { status: 200 });
     }
 
-    // Chat API
+    // ---- POST /api/chat ----
     if (pathname === "/api/chat" && request.method === "POST") {
-      const body = await request.json<{ message: string; sessionId: string; goals?: string[] }>();
+      const body = await request.json<{
+        message: string;
+        sessionId: string;
+        goals?: string[];
+        folderId?: string;
+        folderName?: string;
+      }>();
 
       if (!body.sessionId) {
         return new Response("Missing sessionId", { status: 400 });
@@ -27,18 +33,21 @@ export default {
       const id = env.CHAT_SESSION.idFromName(body.sessionId);
       const stub = env.CHAT_SESSION.get(id);
 
-     const res = await stub.fetch("https://dummy/message", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    message: body.message,
-    goals: body.goals
-  })
-});
+      const res = await stub.fetch("https://dummy/message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: body.message,
+          goals: body.goals,
+          folderId: body.folderId,
+          folderName: body.folderName
+        })
+      });
 
       return res;
     }
 
+    // ---- GET /api/history ----
     if (pathname === "/api/history" && request.method === "GET") {
       const sessionId = url.searchParams.get("sessionId");
       if (!sessionId) {
@@ -53,8 +62,9 @@ export default {
     }
 
     // Static assets (frontend)
-    // /  -> public/index.html
-    // /styles.css, /app.js, ...
+    // /           -> public/index.html
+    // /styles.css -> public/styles.css
+    // /app.js     -> public/app.js
     if (env.ASSETS && "fetch" in env.ASSETS) {
       return env.ASSETS.fetch(request);
     }
