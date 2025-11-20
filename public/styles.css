@@ -226,5 +226,34 @@ header p {
   font-weight: 600;
   cursor: pointer;
 }
+/* Goals listed under each folder in the sidebar */
+.folder-goal-list {
+  margin-left: 0.75rem;
+  margin-top: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.folder-goal-item {
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  font-size: 0.8rem;
+  text-align: left;
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.35rem;
+  cursor: pointer;
+}
+
+.folder-goal-item:hover {
+  background: #111827;
+  color: #e5e7eb;
+}
+
+.folder-goal-item.active-goal {
+  background: #1d4ed8;
+  color: #f9fafb;
+}
 
 /* old dropdown-based folder-row / #folderSelect styles removed */

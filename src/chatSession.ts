@@ -1,4 +1,3 @@
-// src/chatSession.ts
 import type { Ai } from "@cloudflare/workers-types";
 
 type Role = "user" | "assistant" | "system";
@@ -9,16 +8,24 @@ interface ChatMessage {
   timestamp: number;
 }
 
+interface Goal {
+  id: string;
+  title: string;
+  notes: string;
+}
+
 interface Folder {
   id: string;       // e.g. "general", "os", "csharp"
   name: string;     // e.g. "General", "Operating Systems"
-  goals: string[];  // goals specific to this folder
+  goals: Goal[];    // individual goals in this folder
 }
 
 interface SessionState {
   folders: Folder[];
   activeFolderId: string | null;
-  messages: ChatMessage[];
+  activeGoalId: string | null;
+  // Per-goal conversation history
+  messagesByGoal: Record<string, ChatMessage[]>;
 }
 
 // Env for this file – AI binding only
@@ -36,63 +43,150 @@ export class ChatSession {
     this.env = env;
   }
 
+  // --- Helpers --------------------------------------------------------------
+
+  private normalizeFolders(rawFolders: any[]): Folder[] {
+    return rawFolders.map((f: any, idx: number) => {
+      const id =
+        typeof f.id === "string"
+          ? f.id
+          : idx === 0
+          ? "general"
+          : `folder-${idx}`;
+
+      const name = typeof f.name === "string" ? f.name : "Folder";
+
+      const rawGoals = Array.isArray(f.goals) ? f.goals : [];
+      const goals: Goal[] = rawGoals.map((g: any, gIdx: number) => {
+        if (typeof g === "string") {
+          return {
+            id: `${id}-goal-${gIdx}`,
+            title: g,
+            notes: ""
+          };
+        }
+
+        const goalId =
+          typeof g.id === "string" ? g.id : `${id}-goal-${gIdx}`;
+        const title =
+          typeof g.title === "string" ? g.title : "Goal";
+        const notes =
+          typeof g.notes === "string" ? g.notes : "";
+
+        return { id: goalId, title, notes };
+      });
+
+      return { id, name, goals };
+    });
+  }
+
   private async loadState(): Promise<SessionState> {
     if (this.cache) return this.cache;
 
     const stored = await this.state.storage.get<any>("state");
 
     if (stored) {
-      // --- Migration from old shape (goals + messages) to folders + activeFolderId ---
-      let migrated: SessionState;
+      // --- New shape already (messagesByGoal present) -----------------------
+      if (stored && stored.messagesByGoal) {
+        const folders: Folder[] = this.normalizeFolders(
+          Array.isArray(stored.folders) ? stored.folders : []
+        );
 
-      if (Array.isArray(stored.folders)) {
-        // Already new shape, just normalize a bit
-        const folders: Folder[] = stored.folders.map((f: any, idx: number) => ({
-          id: typeof f.id === "string" ? f.id : idx === 0 ? "general" : `folder-${idx}`,
-          name: typeof f.name === "string" ? f.name : "Folder",
-          goals: Array.isArray(f.goals) ? f.goals : []
-        }));
-
-        const activeFolderId: string | null =
+        let activeFolderId: string | null =
           typeof stored.activeFolderId === "string"
             ? stored.activeFolderId
-            : (folders[0]?.id ?? "general");
+            : folders[0]?.id ?? "general";
 
-        const messages: ChatMessage[] = Array.isArray(stored.messages)
-          ? stored.messages
-          : [];
+        if (!folders.find((f) => f.id === activeFolderId) && folders[0]) {
+          activeFolderId = folders[0].id;
+        }
 
-        migrated = {
+        let activeGoalId: string | null =
+          typeof stored.activeGoalId === "string"
+            ? stored.activeGoalId
+            : null;
+
+        const messagesByGoal: Record<string, ChatMessage[]> =
+          typeof stored.messagesByGoal === "object" &&
+          stored.messagesByGoal !== null
+            ? stored.messagesByGoal
+            : {};
+
+        const migrated: SessionState = {
           folders,
           activeFolderId,
-          messages
+          activeGoalId,
+          messagesByGoal
         };
-      } else {
-        // Old shape: { goals?: string[], messages?: ChatMessage[] }
-        const oldGoals: string[] = Array.isArray(stored.goals) ? stored.goals : [];
-        const messages: ChatMessage[] = Array.isArray(stored.messages)
-          ? stored.messages
-          : [];
 
-        migrated = {
-          folders: [
-            {
-              id: "general",
-              name: "General",
-              goals: oldGoals
-            }
-          ],
-          activeFolderId: "general",
-          messages
-        };
+        this.cache = migrated;
+        await this.state.storage.put("state", migrated);
+        return migrated;
       }
+
+      // --- Old shape: messages array + folders with goals: string[] --------
+      const folders: Folder[] = this.normalizeFolders(
+        Array.isArray(stored.folders) ? stored.folders : []
+      );
+
+      let activeFolderId: string | null =
+        typeof stored.activeFolderId === "string"
+          ? stored.activeFolderId
+          : folders[0]?.id ?? "general";
+
+      if (!folders.find((f) => f.id === activeFolderId) && folders[0]) {
+        activeFolderId = folders[0].id;
+      }
+
+      // Old messages: single array, no goal separation
+      const oldMessages: ChatMessage[] = Array.isArray(stored.messages)
+        ? stored.messages
+        : [];
+
+      const messagesByGoal: Record<string, ChatMessage[]> = {};
+
+      // Attach all old messages to a single "legacy" goal in the active folder
+      let activeGoalId: string | null = null;
+      let targetFolder =
+        folders.find((f) => f.id === activeFolderId) ?? folders[0];
+
+      if (!targetFolder) {
+        targetFolder = {
+          id: "general",
+          name: "General",
+          goals: []
+        };
+        folders.push(targetFolder);
+        activeFolderId = targetFolder.id;
+      }
+
+      if (targetFolder.goals.length === 0) {
+        const legacyGoal: Goal = {
+          id: `${targetFolder.id}-goal-legacy`,
+          title: "Legacy session",
+          notes: ""
+        };
+        targetFolder.goals.push(legacyGoal);
+      }
+
+      activeGoalId = targetFolder.goals[0].id;
+      messagesByGoal[activeGoalId] = oldMessages.filter(
+        (m) => m.role !== "system"
+      );
+
+      const migrated: SessionState = {
+        folders,
+        activeFolderId,
+        activeGoalId,
+        messagesByGoal
+      };
 
       this.cache = migrated;
       await this.state.storage.put("state", migrated);
       return migrated;
     }
 
-    // Fresh state (no previous storage)
+    // --- Fresh state (no previous storage) ---------------------------------
     const fresh: SessionState = {
       folders: [
         {
@@ -102,16 +196,8 @@ export class ChatSession {
         }
       ],
       activeFolderId: "general",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are Edge Study Coach, an encouraging AI study partner. " +
-            "You help the user break topics into smaller chunks, quiz them, " +
-            "and build on their previous conversations and goals.",
-          timestamp: Date.now()
-        }
-      ]
+      activeGoalId: null,
+      messagesByGoal: {}
     };
 
     this.cache = fresh;
@@ -122,6 +208,8 @@ export class ChatSession {
     this.cache = state;
     await this.state.storage.put("state", state);
   }
+
+  // -------------------------------------------------------------------------
 
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
@@ -142,17 +230,17 @@ export class ChatSession {
         ];
         state.folders = folders;
         state.activeFolderId = "general";
+        state.activeGoalId = null;
         await this.saveState(state);
       }
 
-      const activeFolder =
-        folders.find((f) => f.id === state.activeFolderId) ?? folders[0];
-
+      // We return messagesByGoal so the frontend can decide what to show.
+      // System messages are not stored in messagesByGoal.
       return Response.json({
-        folders,
-        activeFolderId: activeFolder?.id ?? null,
-        activeFolderGoals: activeFolder?.goals ?? [],
-        messages: state.messages.filter((m) => m.role !== "system")
+        folders: state.folders,
+        activeFolderId: state.activeFolderId,
+        activeGoalId: state.activeGoalId,
+        messagesByGoal: state.messagesByGoal
       });
     }
 
@@ -160,9 +248,12 @@ export class ChatSession {
     if (request.method === "POST" && pathname === "/message") {
       const body = await request.json<{
         message: string;
-        goals?: string[];
+        goals?: string[]; // legacy, ignored now
         folderId?: string;
         folderName?: string;
+        goalId?: string;
+        goalTitle?: string;
+        goalNotes?: string;
       }>();
 
       const userText = body.message?.trim();
@@ -178,14 +269,17 @@ export class ChatSession {
           { id: "general", name: "General", goals: [] }
         ];
         state.activeFolderId = "general";
+        state.activeGoalId = null;
       }
 
       // ----- Folder handling -----
-      let activeFolder: Folder | undefined;
+      let activeFolder: Folder;
 
       if (body.folderId) {
-        activeFolder = state.folders.find((f) => f.id === body.folderId);
-        if (!activeFolder) {
+        const existing = state.folders.find((f) => f.id === body.folderId);
+        if (existing) {
+          activeFolder = existing;
+        } else {
           activeFolder = {
             id: body.folderId,
             name: body.folderName || body.folderId,
@@ -201,9 +295,56 @@ export class ChatSession {
         state.activeFolderId = activeFolder.id;
       }
 
-      // Update goals for the active folder if provided
-      if (Array.isArray(body.goals)) {
-        activeFolder.goals = body.goals.slice(0, 10);
+      // ----- Goal handling -----
+      let activeGoal: Goal | undefined;
+
+      if (body.goalId) {
+        activeGoal = activeFolder.goals.find((g) => g.id === body.goalId);
+        if (!activeGoal) {
+          activeGoal = {
+            id: body.goalId,
+            title: body.goalTitle || "New goal",
+            notes: body.goalNotes || ""
+          };
+          activeFolder.goals.push(activeGoal);
+        } else {
+          // Update title if provided
+          if (typeof body.goalTitle === "string" && body.goalTitle.trim()) {
+            activeGoal.title = body.goalTitle.trim();
+          }
+        }
+        if (typeof body.goalNotes === "string") {
+          activeGoal.notes = body.goalNotes;
+        }
+        state.activeGoalId = activeGoal.id;
+      } else {
+        // No goalId provided: fall back to existing activeGoal or first goal
+        if (state.activeGoalId) {
+          activeGoal = activeFolder.goals.find(
+            (g) => g.id === state.activeGoalId
+          );
+        }
+        if (!activeGoal && activeFolder.goals.length > 0) {
+          activeGoal = activeFolder.goals[0];
+          state.activeGoalId = activeGoal.id;
+        }
+        if (!activeGoal) {
+          // Create a default goal
+          const newGoal: Goal = {
+            id: `${activeFolder.id}-goal-${Date.now()}`,
+            title: "New goal",
+            notes: body.goalNotes || ""
+          };
+          activeFolder.goals.push(newGoal);
+          activeGoal = newGoal;
+          state.activeGoalId = newGoal.id;
+        }
+      }
+
+      const goalId = activeGoal.id;
+
+      if (!state.messagesByGoal[goalId]) {
+        state.messagesByGoal[goalId] = [];
       }
 
       // ----- Add user message -----
@@ -212,23 +353,22 @@ export class ChatSession {
         content: userText,
         timestamp: Date.now()
       };
-      state.messages.push(userMessage);
+      state.messagesByGoal[goalId].push(userMessage);
 
-      const recent = state.messages.slice(-15);
+      const recent = state.messagesByGoal[goalId].slice(-15);
 
-      const goalsText =
-        activeFolder.goals.length > 0
-          ? `The user's current study goals in the "${activeFolder.name}" folder: ${activeFolder.goals.join(
-              "; "
-            )}`
-          : `The user has no specific goals in the current folder ("${activeFolder.name}").`;
+      const goalContext =
+        activeGoal.notes && activeGoal.notes.trim().length > 0
+          ? `The user's current study goal is "${activeGoal.title}". Notes for this goal: ${activeGoal.notes}`
+          : `The user's current study goal is "${activeGoal.title}".`;
 
       const systemContext: ChatMessage = {
         role: "system",
         content:
-          `${goalsText}\n` +
-          "Always respond as a study coach: explain briefly, then ask a follow-up question " +
-          "or propose a small exercise related to the user's current folder.",
+          `${goalContext}\n` +
+          `Folder: "${activeFolder.name}".\n` +
+          "Always respond as a study coach: explain briefly, then ask a follow-up " +
+          "question or propose a small exercise related to this specific goal.",
         timestamp: Date.now()
       };
 
@@ -237,48 +377,46 @@ export class ChatSession {
         content: m.content
       }));
 
-     let answerText: string;
+      let answerText: string;
 
-try {
-  const aiResponse = await this.env.AI.run(
-    "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-    {
-      messages: messagesForModel,
-      max_tokens: 400,
-      temperature: 0.7
-    }
-  );
+      try {
+        const aiResponse = await this.env.AI.run(
+          "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+          {
+            messages: messagesForModel,
+            max_tokens: 400,
+            temperature: 0.7
+          }
+        );
 
-  answerText =
-    typeof aiResponse === "string"
-      ? aiResponse
-      : (aiResponse as any).response ??
-        (aiResponse as any).result ??
-        JSON.stringify(aiResponse);
-} catch (err: any) {
-  // Log to console for debugging in wrangler dev
-  console.error("Workers AI error:", err);
+        answerText =
+          typeof aiResponse === "string"
+            ? aiResponse
+            : (aiResponse as any).response ??
+              (aiResponse as any).result ??
+              JSON.stringify(aiResponse);
+      } catch (err: any) {
+        console.error("Workers AI error:", err);
 
-  // Fallback message so the Worker doesn't 500 on the client
-  answerText =
-    "I'm having trouble reaching the AI model right now. " +
-    "Please try your question again in a moment.";
-}
-
+        answerText =
+          "I'm having trouble reaching the AI model right now. " +
+          "Please try your question again in a moment.";
+      }
 
       const assistantMessage: ChatMessage = {
         role: "assistant",
         content: answerText,
         timestamp: Date.now()
       };
-      state.messages.push(assistantMessage);
+      state.messagesByGoal[goalId].push(assistantMessage);
 
       await this.saveState(state);
 
       return Response.json({
         reply: assistantMessage.content,
         folders: state.folders,
-        activeFolderId: state.activeFolderId
+        activeFolderId: state.activeFolderId,
+        activeGoalId: state.activeGoalId
       });
     }
 

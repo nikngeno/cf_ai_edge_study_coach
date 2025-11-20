@@ -5,7 +5,7 @@
   const goalsInput = document.getElementById("goalsInput");
   const saveGoalsBtn = document.getElementById("saveGoalsBtn");
 
-  // New: folder list container on the left (not a dropdown)
+  // Sidebar elements
   const folderListEl = document.getElementById("folderList");
   const newFolderInput = document.getElementById("newFolderInput");
   const createFolderBtn = document.getElementById("createFolderBtn");
@@ -13,17 +13,19 @@
   const STORAGE_KEY = "edge_study_coach_session_id";
   let sessionId = localStorage.getItem(STORAGE_KEY);
 
-  let activeFolderId = "general";
-  let folders = [{ id: "general", name: "General", goals: [] }];
-
-  // "See more" state for folders
-  const MAX_VISIBLE_FOLDERS = 6;
-  let showAllFolders = false;
-
   if (!sessionId) {
     sessionId = crypto.randomUUID();
     localStorage.setItem(STORAGE_KEY, sessionId);
   }
+
+  // State
+  let folders = [{ id: "general", name: "General", goals: [] }];
+  let activeFolderId = "general";
+  let activeGoalId = null; // which goal is currently selected
+  let messagesByGoal = {}; // { [goalId]: ChatMessage[] }
+
+  const MAX_VISIBLE_FOLDERS = 6;
+  let showAllFolders = false;
 
   function escapeHtml(str) {
     return str
@@ -45,7 +47,12 @@
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
-  // --- NEW: render folders as a vertical list with "see more" ---
+  function clearChatUI() {
+    messagesEl.innerHTML = "";
+  }
+
+  // ---------- Sidebar rendering (folders + goals) --------------------------
+
   function renderFolderList() {
     if (!folderListEl) return;
 
@@ -60,36 +67,60 @@
         ? folders.length - MAX_VISIBLE_FOLDERS
         : 0;
 
-    // Title
-    const title = document.createElement("div");
-    title.textContent = "Folders";
-    title.className = "folder-list-title"; // style in CSS
-    folderListEl.appendChild(title);
+    visibleFolders.forEach((folder) => {
+      // Folder button
+      const folderBtn = document.createElement("button");
+      folderBtn.type = "button";
+      folderBtn.className =
+        "folder-item" + (folder.id === activeFolderId ? " active" : "");
+      folderBtn.textContent = folder.name;
 
-    // Each folder as a button in the left sidebar
-    visibleFolders.forEach((f) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className =
-        "folder-item" + (f.id === activeFolderId ? " active" : "");
-      btn.textContent = f.name;
-
-      btn.addEventListener("click", () => {
-        activeFolderId = f.id;
-        const folder = folders.find((x) => x.id === activeFolderId);
-        goalsInput.value =
-          folder && Array.isArray(folder.goals)
-            ? folder.goals.join("\n")
-            : "";
-
-        // Re-render to highlight the active folder
+      folderBtn.addEventListener("click", () => {
+        activeFolderId = folder.id;
+        // Don't auto-load any goal; wait until user clicks a specific goal.
+        activeGoalId = null;
+        goalsInput.value = "";
+        clearChatUI();
         renderFolderList();
       });
 
-      folderListEl.appendChild(btn);
+      folderListEl.appendChild(folderBtn);
+
+      // Goals under this folder
+      if (Array.isArray(folder.goals) && folder.goals.length > 0) {
+        const goalsContainer = document.createElement("div");
+        goalsContainer.className = "folder-goal-list";
+
+        folder.goals.forEach((goal) => {
+          const goalBtn = document.createElement("button");
+          goalBtn.type = "button";
+          goalBtn.className =
+            "folder-goal-item" +
+            (goal.id === activeGoalId ? " active-goal" : "");
+          goalBtn.textContent = goal.title;
+
+          goalBtn.addEventListener("click", () => {
+            activeFolderId = folder.id;
+            activeGoalId = goal.id;
+
+            // Load notes into textarea
+            goalsInput.value = goal.notes || "";
+
+            // Load chat history for this goal
+            clearChatUI();
+            const msgs = messagesByGoal[goal.id] || [];
+            msgs.forEach((m) => renderMessage(m.role, m.content));
+
+            renderFolderList();
+          });
+
+          goalsContainer.appendChild(goalBtn);
+        });
+
+        folderListEl.appendChild(goalsContainer);
+      }
     });
 
-    // "⋯ See more" button if there are extra folders
     if (hiddenCount > 0) {
       const seeMoreBtn = document.createElement("button");
       seeMoreBtn.type = "button";
@@ -107,6 +138,8 @@
     }
   }
 
+  // ---------- History load (initial blank main area) -----------------------
+
   async function loadHistory() {
     try {
       const res = await fetch(
@@ -116,52 +149,97 @@
 
       const data = await res.json();
 
-      // Expecting: { folders, activeFolderId, activeFolderGoals, messages }
       if (Array.isArray(data.folders) && data.folders.length > 0) {
         folders = data.folders;
       } else {
         folders = [{ id: "general", name: "General", goals: [] }];
       }
 
-      activeFolderId = data.activeFolderId || folders[0].id;
+      activeFolderId =
+        typeof data.activeFolderId === "string"
+          ? data.activeFolderId
+          : folders[0]?.id || "general";
 
-      // Sync goals textarea with active folder
-      if (Array.isArray(data.activeFolderGoals)) {
-        goalsInput.value = data.activeFolderGoals.join("\n");
-        const activeFolder = folders.find((f) => f.id === activeFolderId);
-        if (activeFolder) {
-          activeFolder.goals = data.activeFolderGoals;
-        }
-      } else {
-        const activeFolder = folders.find((f) => f.id === activeFolderId);
-        goalsInput.value =
-          activeFolder && Array.isArray(activeFolder.goals)
-            ? activeFolder.goals.join("\n")
-            : "";
-      }
+      activeGoalId =
+        typeof data.activeGoalId === "string" ? data.activeGoalId : null;
 
-      // Render sidebar folders based on latest state
+      messagesByGoal =
+        typeof data.messagesByGoal === "object" && data.messagesByGoal !== null
+          ? data.messagesByGoal
+          : {};
+
+      // BUT: we keep UI blank until user clicks a goal or creates one
+      goalsInput.value = "";
+      clearChatUI();
+
       renderFolderList();
-
-      (data.messages || []).forEach((m) => renderMessage(m.role, m.content));
     } catch (err) {
       console.error("Failed to load history", err);
     }
   }
 
-  async function sendMessage(text) {
-    const goals = goalsInput.value
-      .split("\n")
-      .map((g) => g.trim())
-      .filter(Boolean);
+  // ---------- Goal helpers --------------------------------------------------
 
-    // Update local folder goals before sending
-    const folder = folders.find((f) => f.id === activeFolderId);
-    if (folder) {
-      folder.goals = goals;
+  function getActiveFolder() {
+    return (
+      folders.find((f) => f.id === activeFolderId) || folders[0] || null
+    );
+  }
+
+  function getActiveGoal() {
+    const folder = getActiveFolder();
+    if (!folder || !activeGoalId) return null;
+    return folder.goals.find((g) => g.id === activeGoalId) || null;
+  }
+
+  function ensureGoalForCurrentState() {
+    let folder = getActiveFolder();
+    if (!folder) {
+      folder = { id: "general", name: "General", goals: [] };
+      folders = [folder];
+      activeFolderId = folder.id;
     }
 
-    // Show user message in UI immediately
+    let goal = getActiveGoal();
+    if (!goal) {
+      // Create a new goal using current textarea content as notes
+      const notes = goalsInput.value || "";
+      const trimmedTitle = notes.trim().split("\n")[0].slice(0, 60);
+      const title = trimmedTitle || "New goal";
+
+      const id = `${folder.id}-goal-${Date.now()}`;
+      goal = { id, title, notes };
+
+      folder.goals.push(goal);
+      activeGoalId = id;
+
+      if (!messagesByGoal[id]) {
+        messagesByGoal[id] = [];
+      }
+    }
+
+    return goal;
+  }
+
+  // ---------- Sending a message ---------------------------------------------
+
+  async function sendMessage(text) {
+    const folder = getActiveFolder();
+    const goal = ensureGoalForCurrentState();
+
+    // Update goal notes from textarea before sending
+    goal.notes = goalsInput.value || "";
+
+    if (!messagesByGoal[goal.id]) {
+      messagesByGoal[goal.id] = [];
+    }
+
+    // Optimistic UI
+    messagesByGoal[goal.id].push({
+      role: "user",
+      content: text,
+      timestamp: Date.now()
+    });
     renderMessage("user", text);
 
     input.value = "";
@@ -174,9 +252,12 @@
         body: JSON.stringify({
           message: text,
           sessionId,
-          goals,
-          folderId: activeFolderId,
-          folderName: folder ? folder.name : activeFolderId
+          goals: [], // legacy field, unused now
+          folderId: folder.id,
+          folderName: folder.name,
+          goalId: goal.id,
+          goalTitle: goal.title,
+          goalNotes: goal.notes
         })
       });
 
@@ -193,25 +274,78 @@
 
       const data = await res.json();
 
-      // Update folders / activeFolderId from server response so sidebar stays in sync
+      // Update folders / active ids from server response
       if (Array.isArray(data.folders)) {
         folders = data.folders;
       }
       if (data.activeFolderId) {
         activeFolderId = data.activeFolderId;
       }
+      if (data.activeGoalId) {
+        activeGoalId = data.activeGoalId;
+      }
 
-      renderFolderList();
+      const currentGoalId = activeGoalId || goal.id;
+      if (!messagesByGoal[currentGoalId]) {
+        messagesByGoal[currentGoalId] = [];
+      }
+
+      messagesByGoal[currentGoalId].push({
+        role: "assistant",
+        content: data.reply || "(no reply)",
+        timestamp: Date.now()
+      });
 
       renderMessage("assistant", data.reply || "(no reply)");
+      renderFolderList();
     } catch (err) {
       input.disabled = false;
-      renderMessage("assistant", "Network error talking to the coach.");
+      renderMessage(
+        "assistant",
+        "Network error talking to the coach."
+      );
       console.error(err);
     }
   }
 
-  // Folder creation – still works, just re-renders the sidebar instead of a dropdown
+  // ---------- Save goal (create or update) ----------------------------------
+
+  if (saveGoalsBtn) {
+    saveGoalsBtn.addEventListener("click", () => {
+      const folder = getActiveFolder();
+      if (!folder) return;
+
+      // If no current goal selected, create a new one
+      if (!activeGoalId) {
+        const notes = goalsInput.value || "";
+        const trimmedTitle = notes.trim().split("\n")[0].slice(0, 60);
+        const title = trimmedTitle || "New goal";
+
+        const id = `${folder.id}-goal-${Date.now()}`;
+        const newGoal = { id, title, notes };
+
+        folder.goals.push(newGoal);
+        activeGoalId = id;
+
+        if (!messagesByGoal[id]) {
+          messagesByGoal[id] = [];
+        }
+      } else {
+        const goal = getActiveGoal();
+        if (goal) {
+          goal.notes = goalsInput.value || "";
+        }
+      }
+
+      renderFolderList();
+      alert(
+        "Goal saved. When you chat, this goal's notes will be used as context."
+      );
+    });
+  }
+
+  // ---------- Folder creation -----------------------------------------------
+
   if (createFolderBtn) {
     createFolderBtn.addEventListener("click", () => {
       const name = newFolderInput.value.trim();
@@ -223,24 +357,22 @@
       }
 
       activeFolderId = id;
+      activeGoalId = null;
       newFolderInput.value = "";
       goalsInput.value = "";
+      clearChatUI();
 
       renderFolderList();
     });
   }
+
+  // ---------- Form submit (send message) ------------------------------------
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     const text = input.value.trim();
     if (!text) return;
     sendMessage(text);
-  });
-
-  saveGoalsBtn.addEventListener("click", () => {
-    alert(
-      "Goals saved for this folder. They’ll be sent with your next question."
-    );
   });
 
   loadHistory();
