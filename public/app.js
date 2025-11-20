@@ -1,4 +1,3 @@
-// public/app.js
 (function () {
   const messagesEl = document.getElementById("messages");
   const form = document.getElementById("chatForm");
@@ -6,8 +5,8 @@
   const goalsInput = document.getElementById("goalsInput");
   const saveGoalsBtn = document.getElementById("saveGoalsBtn");
 
-  // Folder-related elements (make sure these exist in index.html)
-  const folderSelect = document.getElementById("folderSelect");
+  // New: folder list container on the left (not a dropdown)
+  const folderListEl = document.getElementById("folderList");
   const newFolderInput = document.getElementById("newFolderInput");
   const createFolderBtn = document.getElementById("createFolderBtn");
 
@@ -16,6 +15,10 @@
 
   let activeFolderId = "general";
   let folders = [{ id: "general", name: "General", goals: [] }];
+
+  // "See more" state for folders
+  const MAX_VISIBLE_FOLDERS = 6;
+  let showAllFolders = false;
 
   if (!sessionId) {
     sessionId = crypto.randomUUID();
@@ -42,19 +45,66 @@
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
-  function renderFolderOptions() {
-    if (!folderSelect) return;
+  // --- NEW: render folders as a vertical list with "see more" ---
+  function renderFolderList() {
+    if (!folderListEl) return;
 
-    folderSelect.innerHTML = "";
-    folders.forEach((f) => {
-      const opt = document.createElement("option");
-      opt.value = f.id;
-      opt.textContent = f.name;
-      if (f.id === activeFolderId) {
-        opt.selected = true;
-      }
-      folderSelect.appendChild(opt);
+    folderListEl.innerHTML = "";
+
+    const visibleFolders = showAllFolders
+      ? folders
+      : folders.slice(0, MAX_VISIBLE_FOLDERS);
+
+    const hiddenCount =
+      folders.length > MAX_VISIBLE_FOLDERS
+        ? folders.length - MAX_VISIBLE_FOLDERS
+        : 0;
+
+    // Title
+    const title = document.createElement("div");
+    title.textContent = "Folders";
+    title.className = "folder-list-title"; // style in CSS
+    folderListEl.appendChild(title);
+
+    // Each folder as a button in the left sidebar
+    visibleFolders.forEach((f) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className =
+        "folder-item" + (f.id === activeFolderId ? " active" : "");
+      btn.textContent = f.name;
+
+      btn.addEventListener("click", () => {
+        activeFolderId = f.id;
+        const folder = folders.find((x) => x.id === activeFolderId);
+        goalsInput.value =
+          folder && Array.isArray(folder.goals)
+            ? folder.goals.join("\n")
+            : "";
+
+        // Re-render to highlight the active folder
+        renderFolderList();
+      });
+
+      folderListEl.appendChild(btn);
     });
+
+    // "⋯ See more" button if there are extra folders
+    if (hiddenCount > 0) {
+      const seeMoreBtn = document.createElement("button");
+      seeMoreBtn.type = "button";
+      seeMoreBtn.className = "folder-see-more";
+      seeMoreBtn.textContent = showAllFolders
+        ? "Show fewer folders"
+        : `⋯ See more (${hiddenCount} more)`;
+
+      seeMoreBtn.addEventListener("click", () => {
+        showAllFolders = !showAllFolders;
+        renderFolderList();
+      });
+
+      folderListEl.appendChild(seeMoreBtn);
+    }
   }
 
   async function loadHistory() {
@@ -74,15 +124,24 @@
       }
 
       activeFolderId = data.activeFolderId || folders[0].id;
-      renderFolderOptions();
 
+      // Sync goals textarea with active folder
       if (Array.isArray(data.activeFolderGoals)) {
         goalsInput.value = data.activeFolderGoals.join("\n");
         const activeFolder = folders.find((f) => f.id === activeFolderId);
         if (activeFolder) {
           activeFolder.goals = data.activeFolderGoals;
         }
+      } else {
+        const activeFolder = folders.find((f) => f.id === activeFolderId);
+        goalsInput.value =
+          activeFolder && Array.isArray(activeFolder.goals)
+            ? activeFolder.goals.join("\n")
+            : "";
       }
+
+      // Render sidebar folders based on latest state
+      renderFolderList();
 
       (data.messages || []).forEach((m) => renderMessage(m.role, m.content));
     } catch (err) {
@@ -102,6 +161,7 @@
       folder.goals = goals;
     }
 
+    // Show user message in UI immediately
     renderMessage("user", text);
 
     input.value = "";
@@ -133,27 +193,25 @@
 
       const data = await res.json();
 
-      // Optionally update folders / activeFolderId from server response
+      // Update folders / activeFolderId from server response so sidebar stays in sync
       if (Array.isArray(data.folders)) {
         folders = data.folders;
       }
       if (data.activeFolderId) {
         activeFolderId = data.activeFolderId;
       }
-      renderFolderOptions();
+
+      renderFolderList();
 
       renderMessage("assistant", data.reply || "(no reply)");
     } catch (err) {
       input.disabled = false;
-      renderMessage(
-        "assistant",
-        "Network error talking to the coach."
-      );
+      renderMessage("assistant", "Network error talking to the coach.");
       console.error(err);
     }
   }
 
-  // Folder creation
+  // Folder creation – still works, just re-renders the sidebar instead of a dropdown
   if (createFolderBtn) {
     createFolderBtn.addEventListener("click", () => {
       const name = newFolderInput.value.trim();
@@ -168,16 +226,7 @@
       newFolderInput.value = "";
       goalsInput.value = "";
 
-      renderFolderOptions();
-    });
-  }
-
-  // Folder switching
-  if (folderSelect) {
-    folderSelect.addEventListener("change", () => {
-      activeFolderId = folderSelect.value;
-      const folder = folders.find((f) => f.id === activeFolderId);
-      goalsInput.value = folder && folder.goals ? folder.goals.join("\n") : "";
+      renderFolderList();
     });
   }
 
@@ -189,7 +238,9 @@
   });
 
   saveGoalsBtn.addEventListener("click", () => {
-    alert("Goals saved for this folder. They’ll be sent with your next question.");
+    alert(
+      "Goals saved for this folder. They’ll be sent with your next question."
+    );
   });
 
   loadHistory();

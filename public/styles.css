@@ -7,7 +7,7 @@ body {
 }
 
 .app {
-  max-width: 800px;
+  max-width: 1200px; /* wider so sidebar doesn't crowd main content */
   margin: 0 auto;
   padding: 1.5rem;
 }
@@ -21,8 +21,114 @@ header p {
   margin-top: 0;
 }
 
-.goals {
+/* ---------- LAYOUT: sidebar + main content ---------- */
+
+.main-layout {
+  display: flex;
+  flex-direction: row;
+  gap: 1.5rem;
   margin-top: 1.5rem;
+}
+
+/* LEFT: folder sidebar */
+.folder-sidebar {
+  width: 220px;
+  min-width: 200px;
+  max-width: 240px;
+  padding: 0.75rem 0.75rem 0.75rem 0;
+  /* border-right removed so it doesn't cut through "Create" */
+}
+
+.folder-sidebar-header h2 {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  color: #9ca3af;
+}
+
+/* New folder row */
+.folder-create-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.folder-create-row input {
+  flex: 1;
+  padding: 0.35rem 0.6rem;
+  border-radius: 0.5rem;
+  border: 1px solid #374151;
+  background: #020617;
+  color: #f9fafb;
+}
+
+.folder-create-row button {
+  padding: 0.35rem 0.8rem;
+  border-radius: 0.5rem;
+  border: none;
+  background: #2563eb;
+  color: #f9fafb;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+/* Folder list container */
+#folderList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+/* Individual folder buttons */
+.folder-item {
+  width: 100%;
+  text-align: left;
+  border: none;
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.5rem;
+  background: #020617;
+  border: 1px solid #111827;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #d1d5db;
+}
+
+.folder-item:hover {
+  background: #111827;
+}
+
+.folder-item.active {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  color: #f9fafb;
+}
+
+/* "See more" button */
+.folder-see-more {
+  border: none;
+  background: none;
+  color: #6b7280;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+  cursor: pointer;
+}
+
+/* RIGHT: goals + chat column */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+
+  /* NEW: move the divider here instead of on the sidebar */
+  border-left: 1px solid #1f2937;
+  padding-left: 1.5rem; /* pushes main content right so line isn't on top of "Create" */
+}
+
+/* ---------- Goals section ---------- */
+
+.goals {
+  margin-top: 0; /* main-layout already has margin-top */
 }
 
 #goalsInput {
@@ -46,8 +152,9 @@ header p {
   cursor: pointer;
 }
 
+/* ---------- Chat section ---------- */
+
 .chat {
-  margin-top: 1.5rem;
   border-radius: 0.75rem;
   border: 1px solid #374151;
   background: #020617;
@@ -119,18 +226,5 @@ header p {
   font-weight: 600;
   cursor: pointer;
 }
-.folder-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  margin-bottom: 1rem;
-}
 
-#folderSelect,
-#newFolderInput {
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.5rem;
-  border: 1px solid #374151;
-  background: #0f172a;
-  color: #fff;
-}
+/* old dropdown-based folder-row / #folderSelect styles removed */

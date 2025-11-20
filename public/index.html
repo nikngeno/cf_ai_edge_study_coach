@@ -12,35 +12,53 @@
         <h1>Edge Study Coach</h1>
         <p>AI-powered study companion running on Cloudflare Workers AI.</p>
       </header>
-      <div class="folder-row">
-  <label for="folderSelect">Folder:</label>
-  <select id="folderSelect"></select>
 
-  <input id="newFolderInput" type="text" placeholder="New folder..." />
-  <button id="createFolderBtn" type="button">Create</button>
-</div>
+      <!-- New: main layout split into sidebar + main content -->
+      <div class="main-layout">
+        <!-- LEFT: folder sidebar -->
+        <aside class="folder-sidebar">
+          <div class="folder-sidebar-header">
+            <h2>Folders</h2>
+          </div>
 
-      <section class="goals">
-        <h2>Your current study goals</h2>
-        <textarea
-          id="goalsInput"
-          placeholder="e.g., master paging, review SR latches, practice C# delegates"
-        ></textarea>
-        <button id="saveGoalsBtn">Save goals</button>
-      </section>
+          <div class="folder-create-row">
+            <input
+              id="newFolderInput"
+              type="text"
+              placeholder="New folder..."
+            />
+            <button id="createFolderBtn" type="button">Create</button>
+          </div>
 
-      <section class="chat">
-        <div id="messages"></div>
-        <form id="chatForm">
-          <input
-            id="messageInput"
-            type="text"
-            placeholder="Ask a question or say what you're studying..."
-            autocomplete="off"
-          />
-          <button type="submit">Send</button>
-        </form>
-      </section>
+          <!-- This is what app.js uses now instead of <select id="folderSelect"> -->
+          <div id="folderList"></div>
+        </aside>
+
+        <!-- RIGHT: goals + chat -->
+        <div class="main-content">
+          <section class="goals">
+            <h2>Your current study goals</h2>
+            <textarea
+              id="goalsInput"
+              placeholder="e.g., master paging, review SR latches, practice C# delegates"
+            ></textarea>
+            <button id="saveGoalsBtn">Save goals</button>
+          </section>
+
+          <section class="chat">
+            <div id="messages"></div>
+            <form id="chatForm">
+              <input
+                id="messageInput"
+                type="text"
+                placeholder="Ask a question or say what you're studying..."
+                autocomplete="off"
+              />
+              <button type="submit">Send</button>
+            </form>
+          </section>
+        </div>
+      </div>
     </div>
 
     <script src="/app.js"></script>
