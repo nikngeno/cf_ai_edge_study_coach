@@ -58,6 +58,7 @@ export class ChatSession {
 
       const rawGoals = Array.isArray(f.goals) ? f.goals : [];
       const goals: Goal[] = rawGoals.map((g: any, gIdx: number) => {
+        // Old shape: goals: string[]
         if (typeof g === "string") {
           return {
             id: `${id}-goal-${gIdx}`,
@@ -234,13 +235,97 @@ export class ChatSession {
         await this.saveState(state);
       }
 
-      // We return messagesByGoal so the frontend can decide what to show.
-      // System messages are not stored in messagesByGoal.
       return Response.json({
         folders: state.folders,
         activeFolderId: state.activeFolderId,
         activeGoalId: state.activeGoalId,
         messagesByGoal: state.messagesByGoal
+      });
+    }
+
+    // -----------------------------------------------------------------------
+    // POST /save-goal  (save or update a goal WITHOUT chatting)
+    // -----------------------------------------------------------------------
+    if (request.method === "POST" && pathname === "/save-goal") {
+      const body = await request.json<{
+        folderId: string;
+        folderName?: string;
+        goalId?: string;
+        goalTitle?: string;
+        goalNotes?: string;
+      }>();
+
+      const state = await this.loadState();
+
+      // Ensure folders exist
+      if (!Array.isArray(state.folders) || state.folders.length === 0) {
+        state.folders = [
+          { id: "general", name: "General", goals: [] }
+        ];
+        state.activeFolderId = "general";
+        state.activeGoalId = null;
+      }
+
+      // ----- Folder handling -----
+      let activeFolder: Folder;
+      if (body.folderId) {
+        const existing = state.folders.find((f) => f.id === body.folderId);
+        if (existing) {
+          activeFolder = existing;
+        } else {
+          activeFolder = {
+            id: body.folderId,
+            name: body.folderName || body.folderId,
+            goals: []
+          };
+          state.folders.push(activeFolder);
+        }
+      } else {
+        activeFolder =
+          state.folders.find((f) => f.id === state.activeFolderId) ??
+          state.folders[0];
+      }
+      state.activeFolderId = activeFolder.id;
+
+      // ----- Goal handling -----
+      const notes = typeof body.goalNotes === "string" ? body.goalNotes : "";
+      const titleFromBody =
+        typeof body.goalTitle === "string" ? body.goalTitle.trim() : "";
+
+      let goalId = body.goalId;
+      let goal: Goal | undefined;
+
+      if (goalId) {
+        goal = activeFolder.goals.find((g) => g.id === goalId);
+      }
+
+      if (!goal) {
+        // Create new goal
+        goalId = goalId || `${activeFolder.id}-goal-${Date.now()}`;
+        const title = titleFromBody || "New goal";
+        goal = { id: goalId, title, notes };
+        activeFolder.goals.push(goal);
+      } else {
+        // Update existing goal
+        if (titleFromBody) {
+          goal.title = titleFromBody;
+        }
+        goal.notes = notes;
+      }
+
+      state.activeGoalId = goal.id;
+
+      // Ensure messages bucket exists for this goal
+      if (!state.messagesByGoal[goal.id]) {
+        state.messagesByGoal[goal.id] = [];
+      }
+
+      await this.saveState(state);
+
+      return Response.json({
+        folders: state.folders,
+        activeFolderId: state.activeFolderId,
+        activeGoalId: state.activeGoalId
       });
     }
 

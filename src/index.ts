@@ -60,6 +60,38 @@ export default {
       const res = await stub.fetch("https://dummy/history");
       return res;
     }
+    // ---- POST /api/save-goal ----
+    if (pathname === "/api/save-goal" && request.method === "POST") {
+      const body = await request.json<{
+        sessionId: string;
+        folderId: string;
+        folderName?: string;
+        goalId?: string;
+        goalTitle?: string;
+        goalNotes?: string;
+      }>();
+
+      if (!body.sessionId) {
+        return new Response("Missing sessionId", { status: 400 });
+      }
+
+      const id = env.CHAT_SESSION.idFromName(body.sessionId);
+      const stub = env.CHAT_SESSION.get(id);
+
+      const res = await stub.fetch("https://dummy/save-goal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          folderId: body.folderId,
+          folderName: body.folderName,
+          goalId: body.goalId,
+          goalTitle: body.goalTitle,
+          goalNotes: body.goalNotes
+        })
+      });
+
+      return res;
+    }
 
     // Static assets (frontend)
     // /           -> public/index.html

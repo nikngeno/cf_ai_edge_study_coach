@@ -309,40 +309,69 @@
   }
 
   // ---------- Save goal (create or update) ----------------------------------
-
   if (saveGoalsBtn) {
-    saveGoalsBtn.addEventListener("click", () => {
+    saveGoalsBtn.addEventListener("click", async () => {
       const folder = getActiveFolder();
       if (!folder) return;
 
-      // If no current goal selected, create a new one
-      if (!activeGoalId) {
-        const notes = goalsInput.value || "";
-        const trimmedTitle = notes.trim().split("\n")[0].slice(0, 60);
-        const title = trimmedTitle || "New goal";
+      const notes = goalsInput.value || "";
+      const trimmedTitle = notes.trim().split("\n")[0].slice(0, 60);
+      const title = trimmedTitle || "New goal";
 
-        const id = `${folder.id}-goal-${Date.now()}`;
-        const newGoal = { id, title, notes };
-
-        folder.goals.push(newGoal);
-        activeGoalId = id;
-
-        if (!messagesByGoal[id]) {
-          messagesByGoal[id] = [];
-        }
-      } else {
-        const goal = getActiveGoal();
-        if (goal) {
-          goal.notes = goalsInput.value || "";
-        }
+      // If we don't yet have a goal id, propose one (backend will use it)
+      let goalIdToUse = activeGoalId;
+      if (!goalIdToUse) {
+        goalIdToUse = `${folder.id}-goal-${Date.now()}`;
       }
 
-      renderFolderList();
-      alert(
-        "Goal saved. When you chat, this goal's notes will be used as context."
-      );
+      try {
+        const res = await fetch("/api/save-goal", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId,
+            folderId: folder.id,
+            folderName: folder.name,
+            goalId: goalIdToUse,
+            goalTitle: title,   // Option 1: title always follows first line
+            goalNotes: notes
+          })
+        });
+
+        if (!res.ok) {
+          alert("Failed to save goal on the server.");
+          return;
+        }
+
+        const data = await res.json();
+
+        // Update local state from server
+        if (Array.isArray(data.folders)) {
+          folders = data.folders;
+        }
+        if (data.activeFolderId) {
+          activeFolderId = data.activeFolderId;
+        }
+        if (data.activeGoalId) {
+          activeGoalId = data.activeGoalId;
+        } else {
+          activeGoalId = goalIdToUse;
+        }
+
+        // Ensure messages bucket exists locally
+        if (activeGoalId && !messagesByGoal[activeGoalId]) {
+          messagesByGoal[activeGoalId] = [];
+        }
+
+        renderFolderList();
+        alert("Goal saved. When you chat, this goal's notes will be used as context.");
+      } catch (err) {
+        console.error("Error saving goal:", err);
+        alert("Network error while saving goal.");
+      }
     });
   }
+
 
   // ---------- Folder creation -----------------------------------------------
 
